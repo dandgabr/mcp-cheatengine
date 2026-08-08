@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "cheat_engine": {
+      "command": "python",
+      "args": [
+        "-m",
+        "mcp_cheatengine"
+      ],
+      "env": {
+        "PYTHONPATH": "B:/Code/mcp-cheatengine/src",
+        "CE_HOST": "127.0.0.1",
+        "CE_PORT": "52737"
+      }
+    }
+  }
+}
