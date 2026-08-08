@@ -1,5 +1,5 @@
 # ============================================================================
-# GitIgnore for Python & Lua Cheat Engine MCP Server
+# GitIgnore for Python, Lua, PowerShell & Batch Cheat Engine MCP Server
 # ============================================================================
 
 # ----------------------------------------------------------------------------
@@ -90,6 +90,21 @@ luarocks/
 lua_modules/
 
 # ----------------------------------------------------------------------------
+# PowerShell & Batch Script Artifacts
+# ----------------------------------------------------------------------------
+*.ps1.bak
+*.psm1.bak
+*.psd1.bak
+*.bat.bak
+*.cmd.bak
+Pester.xml
+TestResults.xml
+*.ps1xml
+powershell_history
+ConsoleHost_history.txt
+*.log
+
+# ----------------------------------------------------------------------------
 # Cheat Engine & Memory Dump Files
 # ----------------------------------------------------------------------------
 *.CT.bak
@@ -97,6 +112,8 @@ lua_modules/
 *.TMP
 *.tmp
 CE_temp*
+dumps/*.dmp
+dumps/*.bin
 
 # ----------------------------------------------------------------------------
 # IDEs & Editor Configuration
