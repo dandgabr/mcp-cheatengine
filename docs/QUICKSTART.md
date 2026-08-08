@@ -4,7 +4,22 @@ Este guia cobre o passo a passo completo para instalar, configurar e colocar em 
 
 ---
 
-## 📋 Pré-requisitos
+## ⚡ Método Automático (Recomendado)
+
+O repositório inclui um inicializador automático que realiza todas as pré-configurações em um único clique:
+
+1. Dê um duplo clique no arquivo [`start_mcp_ce.bat`](file:///B:/Code/mcp-cheatengine/start_mcp_ce.bat) na raiz do projeto (ou execute `.\scripts\launcher.ps1` no PowerShell).
+2. O script irá automaticamente:
+   - Criar o ambiente virtual Python (`venv`) e instalar as dependências.
+   - Localizar onde o **Cheat Engine** está instalado no seu sistema.
+   - Acoplar a ponte Lua no diretório `autorun` do Cheat Engine.
+   - Injetar as configurações do servidor MCP para **Claude Desktop**, **Antigravity CLI/IDE**, **Cursor** e **VS Code**.
+   - Inicializar o **Cheat Engine** com o MCP ativado e pronto para conexão em `127.0.0.1:52737`.
+3. Abra o seu assistente de IA preferido e comece a usar!
+
+---
+
+## 📋 Pré-requisitos (Método Manual)
 
 1. **Cheat Engine 7.0+** instalado (recomendado 7.5 ou superior).
 2. **Python 3.10+** (com `pip` atualizado).
@@ -38,9 +53,7 @@ pip install -e .
 
 ## 🎮 Passo 2: Executar o Bridge Lua no Cheat Engine
 
-Existem **duas opções** para rodar o script Lua no Cheat Engine:
-
-### Opção A: Execução Manual (Ideal para testes rápidos)
+### Execução Manual no Cheat Engine
 1. Abra o **Cheat Engine**.
 2. Abra a janela Lua pressionando **Ctrl + Alt + L** (ou no menu *Table -> Show Lua Engine*).
 3. Clique em **Open file** e selecione o arquivo [`lua/ce_mcp_lua.lua`](file:///B:/Code/mcp-cheatengine/lua/ce_mcp_lua.lua).
@@ -50,11 +63,6 @@ Existem **duas opções** para rodar o script Lua no Cheat Engine:
    [SUCESSO] Servidor Cheat Engine MCP rodando em 127.0.0.1:52737
    [SUCESSO] Loop de eventos do Cheat Engine MCP ativado!
    ```
-
-### Opção B: Autorun Automático (Recomendado para uso contínuo)
-1. Copie o arquivo `lua/ce_mcp_lua.lua` para a pasta de instalação do Cheat Engine (ex: `C:\Program Files\Cheat Engine 7.5\`).
-2. Copie o arquivo `lua/autorun/ce_mcp_autorun.lua` para a pasta `autorun` do Cheat Engine (ex: `C:\Program Files\Cheat Engine 7.5\autorun\`).
-3. Toda vez que você abrir o Cheat Engine, o servidor MCP iniciará automaticamente em segundo plano!
 
 ---
 
