@@ -40,7 +40,7 @@ flowchart TD
     PS1 -->|Injeta Configuração mcpServers| LLM
     LLM <-->|Protocolo MCP via Stdio| PyMCP
     PyMCP --> RPCClient
-    RPCClient <-->|1. Native DLL (luaclient-x86_64.dll)\n2. TCP Socket (127.0.0.1:52737)\n3. Named Pipe (\\\\.\\pipe\\CheatEngineMCP)| LuaServer
+    RPCClient <-->|"1. Native DLL (luaclient-x86_64.dll)<br/>2. TCP Socket (127.0.0.1:52737)<br/>3. Named Pipe (\\\\.\\pipe\\CheatEngineMCP)"| LuaServer
     LuaServer --> TimerLoop
     TimerLoop --> CE_API
     CE_API <-->|Windows API / OpenProcess / VirtualProtect| TargetProc
