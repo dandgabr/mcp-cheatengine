@@ -5,7 +5,7 @@
 [![Cheat Engine 7.0+](https://img.shields.io/badge/Cheat%20Engine-7.0%2B-red.svg)](https://www.cheatengine.org/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-1.0%2B-green.svg)](https://modelcontextprotocol.io/)
 [![Security Audit](https://img.shields.io/badge/Security%20Audit-PASSED-brightgreen.svg)](docs/ARCHITECTURE.md)
-[![License MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 O **Cheat Engine MCP Server** é uma ponte de integração bidirecional via protocolo **Model Context Protocol (MCP)** entre assistentes de Inteligência Artificial (como Claude Desktop, Antigravity CLI/IDE, Cursor, VS Code Copilot) e o **Cheat Engine**.
 
@@ -50,7 +50,7 @@ Para mais detalhes sobre o modelo de execução assíncrona non-blocking e proto
 ```
 mcp-cheatengine/
 ├── .gitignore                      # Configuração completa do GitIgnore (Python, Lua, PowerShell, BAT)
-├── LICENSE                         # Licença MIT
+├── LICENSE                         # Licença GNU General Public License v3.0
 ├── README.md                       # Documentação principal
 ├── requirements.txt                # Dependências Python (mcp)
 ├── pyproject.toml                  # Configuração de empacotamento Python
@@ -153,4 +153,4 @@ Todas as 21 ferramentas e scripts de automação passaram por auditoria estrita 
 
 ## 📄 Licença
 
-Este projeto está licenciado sob a licença [MIT](LICENSE).
+Este projeto está licenciado sob a licença [GNU General Public License v3.0](LICENSE) (GPLv3).
