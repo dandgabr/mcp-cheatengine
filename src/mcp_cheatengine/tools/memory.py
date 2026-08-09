@@ -58,18 +58,21 @@ def register_memory_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def ce_read_pointer_chain(
         base_address: str,
-        offsets: List[int]
+        offsets: List[int],
+        data_type: str = "int32"
     ) -> str:
         """
         Navega por uma cadeia de ponteiros e resolve o endereço final e valor.
 
         :param base_address: Endereço base ou símbolo inicial (ex: 'game.exe+0x01F82A0').
         :param offsets: Lista de offsets em número decimal ou hex (ex: [0x10, 0x48, 0x8]).
+        :param data_type: Tipo de dado do valor final ('int32', 'int64', 'float', 'double', 'string', 'pointer').
         """
-        log_debug(f"Executando tool: ce_read_pointer_chain(base_address='{base_address}', offsets={offsets})")
+        log_debug(f"Executando tool: ce_read_pointer_chain(base_address='{base_address}', offsets={offsets}, data_type='{data_type}')")
         params = {
             "base_address": base_address,
-            "offsets": offsets
+            "offsets": offsets,
+            "type": data_type
         }
         res = default_client.send_request("read_pointer_chain", params)
         return json.dumps(res, indent=2, ensure_ascii=False)

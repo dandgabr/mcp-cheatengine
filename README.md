@@ -27,7 +27,7 @@ Para mais detalhes sobre o modelo de execução assíncrona non-blocking e proto
 
 ---
 
-## ⚡ Funcionalidades Principais (22 Ferramentas MCP)
+## ⚡ Funcionalidades Principais (25 Ferramentas MCP)
 
 - **Inicialização & Pré-configuração Automática**: Script PowerShell (`scripts/launcher.ps1`) e Batch (`start_mcp_ce.bat`) para localização automática do Cheat Engine no registro do Windows, acoplamento da ponte Lua no autorun e injeção do JSON do cliente de IA.
 - **Gerenciamento de Processos**: Listagem, anexo por PID/Nome e encerramento remoto do Cheat Engine (`ce_close_cheat_engine`).
@@ -52,18 +52,19 @@ mcp-cheatengine/
 ├── .gitignore                      # Configuração completa do GitIgnore (Python, Lua, PowerShell, BAT)
 ├── LICENSE                         # Licença GNU General Public License v3.0
 ├── README.md                       # Documentação principal
+├── DOCUMENTACAO_CHEAT_ENGINE_MCP.md # Índice central da documentação reestruturada
 ├── requirements.txt                # Dependências Python (mcp)
 ├── pyproject.toml                  # Configuração de empacotamento Python
 ├── start_mcp_ce.bat                # Script de execução rápida para Windows (Batch com elevação UAC)
 ├── ce_mcp_server.py                # Wrapper de compatibilidade raiz (Python)
 ├── ce_mcp_lua.lua                  # Wrapper de compatibilidade Lua raiz
 ├── config/
-│   ├── mcp_config.json             # Exemplo de configuração generica MCP
+│   ├── mcp_config.json             # Exemplo de configuração genérica MCP
 │   └── claude_desktop_config.json # Exemplo para Claude Desktop
 ├── docs/                           # Central de Documentação Completa
 │   ├── ARCHITECTURE.md             # Especificação técnica e fluxo do sistema
 │   ├── QUICKSTART.md               # Guia passo a passo de instalação
-│   ├── API_REFERENCE.md            # Referência detalhada das 21 ferramentas MCP
+│   ├── API_REFERENCE.md            # Referência detalhada das 25 ferramentas MCP
 │   ├── EXAMPLES.md                 # Exemplos reais de prompts e casos de uso
 │   └── TROUBLESHOOTING.md          # Guia de solução de problemas e erros
 ├── lua/
@@ -145,7 +146,7 @@ Consulte a [Referência Completa da API](docs/API_REFERENCE.md) para tipos de pa
 
 ## 🔒 Auditoria de Segurança
 
-Todas as 21 ferramentas e scripts de automação passaram por auditoria estrita de segurança via agente subespecializado (`security_validator`):
+Todas as 25 ferramentas e scripts de automação passaram por auditoria estrita de segurança via agente subespecializado (`security_validator`):
 - **Transporte Restrito**: Socket TCP escuta **exclusivamente em 127.0.0.1 (Loopback)**.
 - **Sandboxing de Arquivos**: Leitura/escrita de dumps restringida à pasta `dumps\`, com bloqueio de Path Traversal (`..`) e sanitização de extensões (`.dmp`, `.bin`).
 - **Proteção contra DoS**: Limites rígidos de alocação de memória (10MB) e dumps (50MB).

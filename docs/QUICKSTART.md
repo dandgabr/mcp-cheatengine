@@ -8,7 +8,7 @@ Este guia cobre o passo a passo completo para instalar, configurar e colocar em 
 
 O repositório inclui um inicializador automático que realiza todas as pré-configurações em um único clique:
 
-1. Dê um duplo clique no arquivo [`start_mcp_ce.bat`](file:///B:/Code/mcp-cheatengine/start_mcp_ce.bat) na raiz do projeto (ou execute `.\scripts\launcher.ps1` no PowerShell).
+1. Dê um duplo clique no arquivo [`start_mcp_ce.bat`](../start_mcp_ce.bat) na raiz do projeto (ou execute `.\scripts\launcher.ps1` no PowerShell).
 2. O script irá automaticamente:
    - Criar o ambiente virtual Python (`venv`) e instalar as dependências.
    - Localizar onde o **Cheat Engine** está instalado no seu sistema.
@@ -56,7 +56,7 @@ pip install -e .
 ### Execução Manual no Cheat Engine
 1. Abra o **Cheat Engine**.
 2. Abra a janela Lua pressionando **Ctrl + Alt + L** (ou no menu *Table -> Show Lua Engine*).
-3. Clique em **Open file** e selecione o arquivo [`lua/ce_mcp_lua.lua`](file:///B:/Code/mcp-cheatengine/lua/ce_mcp_lua.lua).
+3. Clique em **Open file** e selecione o arquivo [`lua/ce_mcp_lua.lua`](../lua/ce_mcp_lua.lua).
 4. Clique em **Execute script**.
 5. No console do Cheat Engine, confirme se apareceu a mensagem:
    ```text

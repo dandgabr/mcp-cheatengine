@@ -59,7 +59,7 @@ flowchart TD
   - Inicialização garantida do Cheat Engine com a ponte ativada na porta `127.0.0.1:52737`.
 
 ### 2. Camada MCP Python (`src/mcp_cheatengine/`)
-- **`server.py`**: Instancia a aplicação FastMCP e expõe as 22 ferramentas para a IA via transporte `stdio`.
+- **`server.py`**: Instancia a aplicação FastMCP e expõe as 25 ferramentas para a IA via transporte `stdio`.
 - **`rpc_client.py`**: Gerencia cliente de transporte multi-canal (DLL Nativa `luaclient-x86_64.dll`, TCP Socket e Named Pipes Windows), enviando requisições formatadas em JSON-RPC 2.0.
 - **`logger.py`**: Sistema centralizado de logs com suporte a timestamps e feature flag `CE_MCP_DEBUG`.
 - **`config.py`**: Centraliza parâmetros como host (`127.0.0.1`), porta (`52737`), e tempo limite de varreduras.
@@ -123,6 +123,6 @@ A comunicação entre o cliente Python e o servidor Lua segue estritamente a esp
 ## 🔒 Considerações de Segurança e Performance
 
 1. **Escopo de Rede**: O servidor escuta exclusivamente na interface `127.0.0.1` (loopback local), impedindo conexões remotas não autorizadas pela rede externa.
-2. **Execução Assíncrona no CE**: A rotina `Timer.OnTimer` roda a cada 20ms em *non-blocking mode*, permitindo ao usuário continuar usando o Cheat Engine normalmente durante as análises da IA.
+2. **Execução Assíncrona no CE**: A rotina `Timer.OnTimer` roda a cada 50ms em *non-blocking mode*, permitindo ao usuário continuar usando o Cheat Engine normalmente durante as análises da IA.
 3. **Privilégios de Administrador**: Operações de memória exigem que o Cheat Engine (e opcionalmente o servidor Python) tenham permissões elevadas de Administrador no Windows (`SeDebugPrivilege`).
 4. **Sandboxing de Arquivos**: Manipulação de dumps de memória via PowerShell/Lua restrita à subpasta segura `dumps\` com extensões autorizadas (`.dmp` e `.bin`).

@@ -1,6 +1,6 @@
 # 📖 Referência da API e Ferramentas MCP
 
-O **Cheat Engine MCP Server** disponibiliza **22 ferramentas MCP** para controle de memória, depuração, desensamblagem, automação e gerenciamento da Address List.
+O **Cheat Engine MCP Server** disponibiliza **25 ferramentas MCP** para controle de memória, depuração, desensamblagem, automação e gerenciamento da Address List.
 
 ---
 
@@ -36,7 +36,89 @@ O **Cheat Engine MCP Server** disponibiliza **22 ferramentas MCP** para controle
 
 ---
 
-## 🛠️ Detalhamento Técnico das Novas Ferramentas
+## 🛠️ Detalhamento Técnico das Ferramentas Expostas
+
+### `ce_ping`
+Verifica se a ponte Lua do Cheat Engine está ativa e respondendo a comandos.
+- **Parâmetros**: Nenhum
+
+### `ce_close_cheat_engine`
+Encerra o processo do Cheat Engine de forma segura e assíncrona.
+- **Parâmetros**: Nenhum
+
+### `ce_list_processes`
+Lista todos os processos ativos em execução no Windows.
+- **Parâmetros**: Nenhum
+
+### `ce_attach_process`
+Anexa o Cheat Engine ao processo especificado.
+- **Parâmetros**:
+  - `target` (*string*, obrigatório): Nome do processo (ex: `"game.exe"`) ou PID numérico.
+
+### `ce_get_attached_process`
+Retorna detalhes do processo atualmente sob análise.
+- **Parâmetros**: Nenhum
+
+### `ce_read_memory`
+Lê o conteúdo de um endereço de memória de acordo com o tipo especificado.
+- **Parâmetros**:
+  - `address` (*string*, obrigatório): Endereço Hexadecimal (ex: `"0x140001000"`).
+  - `type` (*string*, opcional, padrão: `"int32"`): Tipo de dado (`"byte"`, `"bytes"`, `"int16"`, `"int32"`, `"int64"`, `"float"`, `"double"`, `"string"`, `"pointer"`).
+  - `length` (*int*, opcional): Tamanho em bytes para leitura de string.
+  - `count` (*int*, opcional): Quantidade de bytes para leitura de array de bytes (`"bytes"`).
+
+### `ce_write_memory`
+Escreve um valor numérico, string ou sequência de bytes em um endereço de memória.
+- **Parâmetros**:
+  - `address` (*string*, obrigatório): Endereço Hexadecimal.
+  - `value` (*any*, obrigatório): Valor a ser gravado (números, strings ou hex bytes `"90 90 90"`).
+  - `type` (*string*, opcional, padrão: `"int32"`): Tipo de dado.
+
+### `ce_read_pointer_chain`
+Navega através de uma cadeia de ponteiros multinível a partir de um endereço base e offsets.
+- **Parâmetros**:
+  - `base_address` (*string*, obrigatório): Endereço do ponteiro inicial.
+  - `offsets` (*list[int]*, obrigatório): Lista de desvios em bytes (ex: `[0x10, 0x48, 0x0]`).
+  - `type` (*string*, opcional, padrão: `"int32"`): Tipo de dado a ser lido no endereço final.
+
+### `ce_aob_scan`
+Realiza uma busca por assinaturas de bytes em memória (Array of Bytes Scan).
+- **Parâmetros**:
+  - `pattern` (*string*, obrigatório): Assinatura de bytes em hexadecimal com wildcards (ex: `"48 8B 05 ?? ?? ?? ??"`).
+  - `max_results` (*int*, opcional, padrão: `1000`): Limite máximo de correspondências retornadas.
+
+### `ce_get_address`
+Converte um símbolo, nome de módulo ou expressão relativa em um endereço Hexadecimal absoluto.
+- **Parâmetros**:
+  - `symbol` (*string*, obrigatório): Expressão de endereço (ex: `"game.exe+0x1234"`).
+
+### `ce_enum_modules`
+Enumera todas as bibliotecas de vínculos dinâmicos (DLLs) e módulos carregados no processo anexado.
+- **Parâmetros**: Nenhum
+
+### `ce_disassemble`
+Converte instruções em código de máquina (opcodes) a partir de um endereço para assembly legível x86/x64.
+- **Parâmetros**:
+  - `address` (*string*, obrigatório): Endereço inicial de desensamblagem.
+  - `count` (*int*, opcional, padrão: `10`): Quantidade de instruções a desensamblar.
+
+### `ce_auto_assemble`
+Executa scripts em linguagem Auto Assemble do Cheat Engine para injeção de código, hooks ou code caves.
+- **Parâmetros**:
+  - `script` (*string*, obrigatório): Conteúdo do script Auto Assemble.
+  - `enable` (*boolean*, opcional, padrão: `true`): `true` para aplicar o script, `false` para desativar.
+
+### `ce_execute_lua`
+Executa um trecho de código em linguagem Lua diretamente dentro do ambiente do Cheat Engine.
+- **Parâmetros**:
+  - `code` (*string*, obrigatório): Script Lua a ser executado.
+
+### `ce_set_breakpoint`
+Configura um breakpoint de hardware ou software no endereço de memória especificado.
+- **Parâmetros**:
+  - `address` (*string*, obrigatório): Endereço de memória.
+  - `size` (*int*, opcional, padrão: `1`): Tamanho da instrução ou dado a ser monitorado.
+  - `trigger` (*int*, opcional): Condição de disparo (execução, escrita ou acesso).
 
 ### `ce_pause_process`
 Pausa a execução de todas as threads do processo anexado.
@@ -71,7 +153,7 @@ Insere um novo endereço na Address List.
 - **Parâmetros**:
   - `address` (*string*, obrigatório): Endereço Hexadecimal ou símbolo.
   - `description` (*string*, opcional): Descrição textual (máx 100 chars).
-  - `data_type` (*string*, opcional): Tipo de dado do CE (ex: `"vtDword"`, `"vtFloat"`).
+  - `type` (*string*, opcional, padrão: `"int32"`): Tipo de dado do CE (ex: `"int32"`, `"float"`, `"string"`).
 
 ### `ce_toggle_freeze`
 Congela ou descongela a atualização contínua de um valor na tabela.

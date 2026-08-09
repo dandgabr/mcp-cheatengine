@@ -62,16 +62,11 @@ Guia de solução para os erros e comportamentos inesperados mais comuns ao util
 
 ### 5. `[ERRO] Módulo luasocket não encontrado no Cheat Engine!` / `EAutoAssemblerAllocateFailure`
 
-**Causa:**
-O Cheat Engine não vem com a biblioteca `luasocket` instalada por padrão. Além disso, a função Lua `allocateMemory()` do Cheat Engine tenta alocar memória no processo alvo (Target Game Process) via Auto Assembler. Quando nenhum processo está anexado ao iniciar o Cheat Engine, o Auto Assembler lança a exceção não tratada `EAutoAssemblerAllocateFailure` e fecha a aplicação.
-
 **Solução:**
-O arquivo [`lua/ce_mcp_lua.lua`](file:///B:/Code/mcp-cheatengine/lua/ce_mcp_lua.lua) foi atualizado para alocar buffers de socket locais no próprio processo do Cheat Engine utilizando **`VirtualAlloc` e `VirtualFree` diretamente da `kernel32.dll`** (via `executeCodeEx`). Isso evita totalmente o Auto Assembler e a função `allocateMemory`, sendo 100% imune ao erro `EAutoAssemblerAllocateFailure`.
+O arquivo [`lua/ce_mcp_lua.lua`](../lua/ce_mcp_lua.lua) utiliza a API nativa `openLuaServer("CheatEngineMCP")` e `createPipe("CheatEngineMCP", ...)` para estabelecer conexões síncronas e assíncronas via Named Pipe em modo não-bloqueante (`readBytesMin(0, 4096)`), evitando qualquer alocação Auto Assembler desnecessária na inicialização.
 
-1. Execute o script [`start_mcp_ce.bat`](file:///B:/Code/mcp-cheatengine/start_mcp_ce.bat) para reinstalar os scripts atualizados na pasta do Cheat Engine.
+1. Execute o script [`start_mcp_ce.bat`](../start_mcp_ce.bat) para reinstalar os scripts atualizados na pasta do Cheat Engine.
 2. Ao iniciar o Cheat Engine, o console reportará:
-   `[MCP] LuaSocket nativo não encontrado. Inicializando fallback Winsock via executeCodeEx...`
-   `[SUCESSO] Servidor Cheat Engine MCP rodando em 127.0.0.1:52737`
-
-
-
+   `[INFO][INIT] openLuaServer('CheatEngineMCP') ativado: status=true`
+   `[INFO][INIT] Servidor Named Pipe Cheat Engine ativado (CheatEngineMCP)!`
+   `[INFO][INIT] Loop de eventos MCP não-bloqueante ativado com sucesso!`

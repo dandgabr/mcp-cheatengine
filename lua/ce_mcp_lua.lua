@@ -400,11 +400,33 @@ function handlers.add_address_list_entry(params)
     mr.Description = description
     mr.Address = addressStr
 
+    local varTypeMap = {
+        byte = vtByte or 0,
+        int16 = vtWord or 1,
+        smallint = vtWord or 1,
+        word = vtWord or 1,
+        int32 = vtDword or 2,
+        integer = vtDword or 2,
+        int = vtDword or 2,
+        dword = vtDword or 2,
+        int64 = vtQword or 3,
+        qword = vtQword or 3,
+        float = vtSingle or 4,
+        single = vtSingle or 4,
+        double = vtDouble or 5,
+        string = vtString or 6,
+        auto_assembler = vtAutoAssembler or 7
+    }
+    if params.type and varTypeMap[tostring(params.type):lower()] then
+        mr.VarType = varTypeMap[tostring(params.type):lower()]
+    end
+
     return {
         success = true,
         id = mr.ID,
         description = mr.Description,
-        address = mr.Address
+        address = mr.Address,
+        type = params.type or "int32"
     }
 end
 
@@ -593,10 +615,12 @@ function handlers.write_memory(params)
         success = writeQword(addr, tonumber(val))
     elseif dataType == "float" then
         success = writeFloat(addr, tonumber(val))
-    elseif dataType == "double" then
-        success = writeDouble(addr, tonumber(val))
-    elseif dataType == "string" then
+        elseif dataType == "string" then
         success = writeString(addr, tostring(val))
+    elseif dataType == "pointer" then
+        local ptrVal = tonumber(val) or getAddress(tostring(val))
+        if not ptrVal then error("Valor de ponteiro inválido: " .. tostring(val)) end
+        success = writePointer(addr, ptrVal)
     else
         error("Tipo de dado não suportado: " .. tostring(dataType))
     end
@@ -612,6 +636,7 @@ end
 function handlers.read_pointer_chain(params)
     local baseStr = params.base_address
     local offsets = params.offsets or {}
+    local dataType = (params.type or "int32"):lower()
 
     if not baseStr then error("Parâmetro 'base_address' é obrigatório") end
     local addr = getAddress(baseStr)
@@ -630,11 +655,30 @@ function handlers.read_pointer_chain(params)
         table.insert(steps, { step = i, offset = string.format("0x%X", offset), address = string.format("0x%X", current) })
     end
 
-    local finalVal = readInteger(current)
+    local finalVal = nil
+    if dataType == "int16" or dataType == "smallint" then
+        finalVal = readSmallInteger(current)
+    elseif dataType == "int32" or dataType == "integer" or dataType == "int" then
+        finalVal = readInteger(current)
+    elseif dataType == "int64" or dataType == "qword" then
+        finalVal = readQword(current)
+    elseif dataType == "float" then
+        finalVal = readFloat(current)
+    elseif dataType == "double" then
+        finalVal = readDouble(current)
+    elseif dataType == "string" then
+        finalVal = readString(current, params.length or 256)
+    elseif dataType == "pointer" then
+        finalVal = readPointer(current)
+    else
+        finalVal = readInteger(current)
+    end
+
     return {
         base_address = baseStr,
         final_address = string.format("0x%X", current),
-        final_value_int32 = finalVal,
+        final_value = finalVal,
+        type = dataType,
         steps = steps
     }
 end
@@ -646,7 +690,8 @@ function handlers.aob_scan(params)
     local ms = AOBScan(pattern, params.protection_flags or "+W-C", params.alignment_type or 0, params.start_address or "", params.stop_address or "")
     local results = {}
     if ms then
-        for i = 0, ms.Count - 1 do
+        local maxResults = math.min(ms.Count, tonumber(params.max_results) or 1000)
+        for i = 0, maxResults - 1 do
             local addr = ms[i]
             table.insert(results, string.format("0x%X", getAddress(addr)))
         end
@@ -699,25 +744,28 @@ function handlers.disassemble(params)
     local addr = getAddress(addrStr)
     if not addr or addr == 0 then error("Endereço inválido: " .. tostring(addrStr)) end
 
+    local d = createDisassembler()
     local instructions = {}
     local curr = addr
     for i = 1, count do
-        local disasm = disassemble(curr)
-        local bytesHex = ""
-        local bytesTable = readBytes(curr, getInstructionSize(curr), true)
-        if bytesTable then
-            local hexes = {}
-            for _, b in ipairs(bytesTable) do table.insert(hexes, string.format("%02X", b)) end
-            bytesHex = table.concat(hexes, " ")
+        local disasm = d.disassemble(curr)
+        local data = d.getLastDisassembleData()
+        local bytesTable = data and data.bytes or {}
+        local hexes = {}
+        for _, b in ipairs(bytesTable) do
+            table.insert(hexes, string.format("%02X", b))
         end
+        local bytesHex = table.concat(hexes, " ")
 
         table.insert(instructions, {
             address = string.format("0x%X", curr),
             bytes = bytesHex,
             instruction = disasm
         })
-        curr = curr + getInstructionSize(curr)
+        local instSize = math.max(#bytesTable, 1)
+        curr = curr + instSize
     end
+    if d and d.destroy then d.destroy() end
 
     return {
         start_address = string.format("0x%X", addr),
@@ -732,13 +780,14 @@ function handlers.auto_assemble(params)
 
     local status, disableInfo = autoAssemble(script, params.enable ~= false)
     if not status then
-        error("Falha ao executar Auto Assemble script.")
+        error("Falha ao executar Auto Assemble script: " .. tostring(disableInfo))
     end
 
     return {
         success = true,
         message = "Script Auto Assemble aplicado com sucesso."
     }
+end
 end
 
 function handlers.execute_lua(params)
@@ -841,7 +890,7 @@ if CE_MCP_PIPE_SERVER then
     CE_MCP_PIPE_SERVER = nil
 end
 
-local pipeStatus, pipeRes = pcall(createPipe, "CheatEngineMCP_Pipe", 65536, 65536)
+local pipeStatus, pipeRes = pcall(createPipe, "CheatEngineMCP", 65536, 65536)
 mcp_log("DEBUG", "PIPE_INIT", "pipeStatus=" .. tostring(pipeStatus) .. ", pipeRes=" .. tostring(pipeRes) .. ", valid=" .. tostring(pipeRes and pipeRes.valid))
 
 if pipeStatus and pipeRes and pipeRes.valid then
@@ -868,7 +917,7 @@ if pipeStatus and pipeRes and pipeRes.valid then
             if chunk then
                 pipeBuffer = pipeBuffer .. chunk
                 local newlinePos = pipeBuffer:find("\n")
-                if newlinePos then
+                while newlinePos do
                     local line = pipeBuffer:sub(1, newlinePos - 1)
                     if line:sub(-1) == "\r" then line = line:sub(1, -2) end
                     pipeBuffer = pipeBuffer:sub(newlinePos + 1)
@@ -882,6 +931,7 @@ if pipeStatus and pipeRes and pipeRes.valid then
                         local respBytes = stringToByteTable(respStr)
                         pcall(function() CE_MCP_PIPE_SERVER:writeBytes(respBytes, #respBytes) end)
                     end
+                    newlinePos = pipeBuffer:find("\n")
                 end
             end
         end

@@ -14,8 +14,42 @@ FILE_ATTRIBUTE_NORMAL = 0x80
 INVALID_HANDLE_VALUE = -1
 
 
+# Protótipos de Funções Win32 API para Ctypes em 64-bit
+kernel32 = ctypes.windll.kernel32
+kernel32.CreateFileW.restype = wintypes.HANDLE
+kernel32.CreateFileW.argtypes = [
+    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+    ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE
+]
+kernel32.WriteFile.restype = wintypes.BOOL
+kernel32.WriteFile.argtypes = [
+    wintypes.HANDLE, ctypes.c_char_p, wintypes.DWORD,
+    ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p
+]
+kernel32.ReadFile.restype = wintypes.BOOL
+kernel32.ReadFile.argtypes = [
+    wintypes.HANDLE, ctypes.c_char_p, wintypes.DWORD,
+    ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p
+]
+kernel32.FlushFileBuffers.restype = wintypes.BOOL
+kernel32.FlushFileBuffers.argtypes = [wintypes.HANDLE]
+kernel32.CloseHandle.restype = wintypes.BOOL
+kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+kernel32.WaitNamedPipeW.restype = wintypes.BOOL
+kernel32.WaitNamedPipeW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD]
+
+
+def _is_invalid_handle(h) -> bool:
+    if h is None or h == 0 or h == -1:
+        return True
+    val = getattr(h, "value", h)
+    if val in (-1, 0, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
+        return True
+    return False
+
+
 class CERPCClient:
-    """Cliente para comunicação com o servidor Lua no Cheat Engine via TCP Socket ou Named Pipe."""
+    """Cliente para comunicação com o servidor Lua no Cheat Engine via DLL Nativa, TCP Socket ou Named Pipe."""
 
     def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
         self.host = host or Config.CE_HOST
@@ -25,7 +59,6 @@ class CERPCClient:
 
     def _send_via_pipe(self, payload_str: str) -> str:
         log_debug(f"Tentando comunicação via Named Pipe em {self.pipe_name}...")
-        kernel32 = ctypes.windll.kernel32
         handle = kernel32.CreateFileW(
             self.pipe_name,
             GENERIC_READ | GENERIC_WRITE,
@@ -35,7 +68,7 @@ class CERPCClient:
             FILE_ATTRIBUTE_NORMAL,
             None
         )
-        if handle == INVALID_HANDLE_VALUE or handle == -1:
+        if _is_invalid_handle(handle):
             err = kernel32.GetLastError()
             log_debug(f"CreateFileW falhou com erro Windows {err}. Verificando se a Named Pipe está ocupada...")
             if err == 231:  # ERROR_PIPE_BUSY
@@ -50,7 +83,7 @@ class CERPCClient:
                         FILE_ATTRIBUTE_NORMAL,
                         None
                     )
-            if handle == INVALID_HANDLE_VALUE or handle == -1:
+            if _is_invalid_handle(handle):
                 err = kernel32.GetLastError()
                 log_error(f"Não foi possível abrir a Named Pipe {self.pipe_name}: Erro {err}")
                 raise Exception(f"Erro ao abrir Named Pipe (Windows Error {err})")
@@ -90,9 +123,10 @@ class CERPCClient:
         Envia uma requisição JSON-RPC para o Cheat Engine via TCP ou Named Pipe.
         """
         timeout_val = timeout if timeout is not None else Config.DEFAULT_TIMEOUT
+        req_id = int(time.time() * 1000)
         payload = {
             "jsonrpc": "2.0",
-            "id": 1,
+            "id": req_id,
             "method": method,
             "params": params or {}
         }
@@ -114,7 +148,7 @@ class CERPCClient:
                 if not getattr(self, "luaclient_initialized", False):
                     init_res = self.luaclient.CELUA_Initialize(b"CheatEngineMCP")
                     log_debug(f"CELUA_Initialize('CheatEngineMCP') retornou: {init_res}")
-                    self.luaclient_initialized = bool(init_res)
+                    self.luaclient_initialized = True
 
                 if self.luaclient_initialized:
                     json_str = json.dumps(payload)
@@ -127,13 +161,16 @@ class CERPCClient:
                         if os.path.exists(resp_file):
                             with open(resp_file, "r", encoding="utf-8") as f:
                                 raw_str = f.read()
-                            log_debug(f"Resposta recebida via LuaClient DLL ({len(raw_str)} bytes): {raw_str}")
                             res = json.loads(raw_str)
-                            if "error" in res and res["error"]:
-                                err_msg = res["error"].get("message", str(res["error"]))
-                                log_error(f"Resposta JSON-RPC de Erro (LuaClient DLL): {err_msg}")
-                                raise Exception(f"Erro no Cheat Engine: {err_msg}")
-                            return res.get("result", {})
+                            if res.get("id") == req_id:
+                                log_debug(f"Resposta recebida via LuaClient DLL ({len(raw_str)} bytes): {raw_str}")
+                                if "error" in res and res["error"]:
+                                    err_msg = res["error"].get("message", str(res["error"]))
+                                    log_error(f"Resposta JSON-RPC de Erro (LuaClient DLL): {err_msg}")
+                                    raise Exception(f"Erro no Cheat Engine: {err_msg}")
+                                return res.get("result", {})
+                            else:
+                                log_debug(f"Stale response in mcp_resp.json (id {res.get('id')} != {req_id}). Ignorando...")
         except Exception as dll_e:
             log_debug(f"Falha na conexão via LuaClient DLL ({dll_e}). Alternando para TCP Socket...")
 
@@ -148,16 +185,17 @@ class CERPCClient:
                 log_debug(f"TCP Conectado. Enviando payload ({len(payload_str)} bytes)...")
                 client.sendall(payload_str.encode("utf-8"))
 
-                buffer = ""
+                raw_buffer = bytearray()
                 while True:
-                    chunk = client.recv(4096).decode("utf-8")
+                    chunk = client.recv(4096)
                     if not chunk:
                         break
-                    buffer += chunk
-                    if "\n" in buffer:
+                    raw_buffer.extend(chunk)
+                    if b"\n" in raw_buffer:
                         break
 
-                if buffer:
+                if raw_buffer:
+                    buffer = raw_buffer.decode("utf-8")
                     log_debug(f"Resposta recebida via TCP Socket: {buffer.strip()}")
                     res = json.loads(buffer.strip())
                     if "error" in res and res["error"]:
