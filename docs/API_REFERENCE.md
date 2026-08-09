@@ -1,6 +1,6 @@
 # 📖 Referência da API e Ferramentas MCP
 
-O **Cheat Engine MCP Server** disponibiliza **21 ferramentas MCP** para controle de memória, depuração, desensamblagem, automação e gerenciamento da Address List.
+O **Cheat Engine MCP Server** disponibiliza **22 ferramentas MCP** para controle de memória, depuração, desensamblagem, automação e gerenciamento da Address List.
 
 ---
 
@@ -9,6 +9,7 @@ O **Cheat Engine MCP Server** disponibiliza **21 ferramentas MCP** para controle
 | Ferramenta | Categoria | Descrição Curta |
 | :--- | :--- | :--- |
 | [`ce_ping`](#ce_ping) | Gerenciamento | Verifica o estado de saúde do servidor Lua no Cheat Engine |
+| [`ce_close_cheat_engine`](#ce_close_cheat_engine) | Gerenciamento | Encerra a aplicação do Cheat Engine remotamente via MCP |
 | [`ce_list_processes`](#ce_list_processes) | Gerenciamento | Retorna todos os processos em execução com PID e Nome |
 | [`ce_attach_process`](#ce_attach_process) | Gerenciamento | Anexa o Cheat Engine a um processo alvo por PID ou Nome |
 | [`ce_get_attached_process`](#ce_get_attached_process) | Gerenciamento | Retorna informações sobre o processo anexado no momento |

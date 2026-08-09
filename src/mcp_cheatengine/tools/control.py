@@ -74,6 +74,14 @@ def register_control_tools(mcp: FastMCP) -> None:
         :param address: Endereço Hexadecimal de destino.
         :param filename: Nome do arquivo presente no diretório seguro de dumps.
         """
+        log_debug(f"Executando tool: ce_load_memory_from_file(address='{address}', filename='{filename}')")
         params = {"address": address, "filename": filename}
         res = default_client.send_request("load_memory_from_file", params)
+        return json.dumps(res, indent=2, ensure_ascii=False)
+
+    @mcp.tool()
+    def ce_close_cheat_engine() -> str:
+        """Encerra a aplicação do Cheat Engine com segurança via MCP."""
+        log_debug("Executando tool: ce_close_cheat_engine")
+        res = default_client.send_request("close_cheat_engine")
         return json.dumps(res, indent=2, ensure_ascii=False)

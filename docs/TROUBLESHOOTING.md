@@ -57,3 +57,21 @@ Guia de solução para os erros e comportamentos inesperados mais comuns ao util
 **Solução:**
 - Verifique se a flag `is_64bit` retornada pela ferramenta `ce_get_attached_process` corresponde à arquitetura do processo.
 - O Cheat Engine lida automaticamente com ponteiros de 32 ou 64 bits de acordo com a arquitetura do processo anexado.
+
+---
+
+### 5. `[ERRO] Módulo luasocket não encontrado no Cheat Engine!` / `EAutoAssemblerAllocateFailure`
+
+**Causa:**
+O Cheat Engine não vem com a biblioteca `luasocket` instalada por padrão. Além disso, a função Lua `allocateMemory()` do Cheat Engine tenta alocar memória no processo alvo (Target Game Process) via Auto Assembler. Quando nenhum processo está anexado ao iniciar o Cheat Engine, o Auto Assembler lança a exceção não tratada `EAutoAssemblerAllocateFailure` e fecha a aplicação.
+
+**Solução:**
+O arquivo [`lua/ce_mcp_lua.lua`](file:///B:/Code/mcp-cheatengine/lua/ce_mcp_lua.lua) foi atualizado para alocar buffers de socket locais no próprio processo do Cheat Engine utilizando **`VirtualAlloc` e `VirtualFree` diretamente da `kernel32.dll`** (via `executeCodeEx`). Isso evita totalmente o Auto Assembler e a função `allocateMemory`, sendo 100% imune ao erro `EAutoAssemblerAllocateFailure`.
+
+1. Execute o script [`start_mcp_ce.bat`](file:///B:/Code/mcp-cheatengine/start_mcp_ce.bat) para reinstalar os scripts atualizados na pasta do Cheat Engine.
+2. Ao iniciar o Cheat Engine, o console reportará:
+   `[MCP] LuaSocket nativo não encontrado. Inicializando fallback Winsock via executeCodeEx...`
+   `[SUCESSO] Servidor Cheat Engine MCP rodando em 127.0.0.1:52737`
+
+
+

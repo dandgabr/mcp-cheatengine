@@ -8,9 +8,42 @@
 local PORT = 52737
 local HOST = "127.0.0.1"
 
-print("==================================================")
-print(" Inicializando Cheat Engine MCP Bridge...")
-print("==================================================")
+-- ============================================================================
+-- FEATURE FLAG & ARQUIVO DE LOG DO TERMINAL
+-- ============================================================================
+local DEBUG_LOGS = true
+local LOG_FILE_PATH = getCheatEngineDir() .. "ce_mcp_lua.log"
+
+-- Limpa o arquivo de log toda vez que o script Lua inicia
+pcall(function()
+    local logFileInit = io.open(LOG_FILE_PATH, "w")
+    if logFileInit then
+        logFileInit:write("=== CHEAT ENGINE MCP LUA LOG INICIADO: " .. (os.date("%Y-%m-%d %H:%M:%S") or "") .. " ===\n")
+        logFileInit:close()
+    end
+end)
+
+local function mcp_log(level, tag, msg)
+    if not DEBUG_LOGS and level == "DEBUG" then return end
+    local timeStr = os.date and os.date("%H:%M:%S") or "00:00:00"
+    local formatted = string.format("[%s][%s][%s] %s", level, timeStr, tag, tostring(msg))
+    
+    -- Exibe no console gráfico do Cheat Engine
+    print(formatted)
+    
+    -- Grava no arquivo de log em disco
+    pcall(function()
+        local f = io.open(LOG_FILE_PATH, "a")
+        if f then
+            f:write(formatted .. "\n")
+            f:close()
+        end
+    end)
+end
+
+mcp_log("INFO", "INIT", "==================================================")
+mcp_log("INFO", "INIT", " Inicializando Cheat Engine MCP Bridge (Debug Logs = " .. tostring(DEBUG_LOGS) .. ")...")
+mcp_log("INFO", "INIT", "==================================================")
 
 -- ----------------------------------------------------------------------------
 -- Parser e Serializador JSON em Lua Puro (Garante funcionamento sem libs externas)
@@ -162,31 +195,32 @@ function json.decode(str)
     return parseValue()
 end
 
--- Tenta carregar luasocket do Cheat Engine
+-- Tenta carregar luasocket do Cheat Engine (se instalado)
 local socket = nil
 local status, res = pcall(require, "socket")
 if status and res then
     socket = res
+    print("[MCP] LuaSocket nativo carregado com sucesso!")
 else
-    print("[ERRO] Módulo luasocket não encontrado no Cheat Engine!")
-    return
+    print("[MCP] LuaSocket não encontrado. Ativando suporte a Named Pipe nativo do Cheat Engine...")
 end
 
--- Bind do servidor TCP
-if CE_MCP_SERVER_SOCKET then
-    pcall(function() CE_MCP_SERVER_SOCKET:close() end)
-    CE_MCP_SERVER_SOCKET = nil
-end
+-- Bind do servidor TCP (se LuaSocket estiver disponível)
+if socket then
+    if CE_MCP_SERVER_SOCKET then
+        pcall(function() CE_MCP_SERVER_SOCKET:close() end)
+        CE_MCP_SERVER_SOCKET = nil
+    end
 
-local server, err = socket.bind(HOST, PORT)
-if not server then
-    print("[ERRO] Não foi possível iniciar o servidor na porta " .. PORT .. ": " .. tostring(err))
-    return
+    local server, err = socket.bind(HOST, PORT)
+    if server then
+        server:settimeout(0) -- Não bloqueia a interface do Cheat Engine
+        CE_MCP_SERVER_SOCKET = server
+        print("[SUCESSO] Servidor TCP Cheat Engine MCP rodando em " .. HOST .. ":" .. PORT)
+    else
+        print("[AVISO] Não foi possível fazer o bind no TCP na porta " .. PORT .. ": " .. tostring(err))
+    end
 end
-
-server:settimeout(0) -- Não bloqueia a interface do Cheat Engine
-CE_MCP_SERVER_SOCKET = server
-print("[SUCESSO] Servidor Cheat Engine MCP rodando em " .. HOST .. ":" .. PORT)
 
 -- ----------------------------------------------------------------------------
 -- Handlers das Operações do Cheat Engine
@@ -194,11 +228,35 @@ print("[SUCESSO] Servidor Cheat Engine MCP rodando em " .. HOST .. ":" .. PORT)
 local handlers = {}
 
 function handlers.ping(params)
+    mcp_log("DEBUG", "PING", "Requisição de ping recebida com sucesso!")
     return {
         status = "ok",
+        message = "Cheat Engine MCP Server Ativo e Respondendo!",
+        timestamp = os.date and os.date("%Y-%m-%d %H:%M:%S") or "Unknown",
         ce_version = getCEVersion and getCEVersion() or "Unknown",
-        process = process or "None",
+        process_name = process or "Nenhum",
         process_id = getOpenedProcessID and getOpenedProcessID() or 0
+    }
+end
+
+function handlers.close_cheat_engine(params)
+    mcp_log("INFO", "CLOSE", "Encerrando Cheat Engine a pedido do cliente MCP...")
+    
+    local t = createTimer(nil, false)
+    t.Interval = 200
+    t.OnTimer = function()
+        t.destroy()
+        if closeCE then
+            closeCE()
+        elseif getMainForm then
+            getMainForm().close()
+        end
+    end
+    t.Enabled = true
+
+    return {
+        success = true,
+        message = "Encerrando Cheat Engine..."
     }
 end
 
@@ -718,56 +776,119 @@ function handlers.set_breakpoint(params)
 end
 
 -- ----------------------------------------------------------------------------
--- Processamento de Requisições via Socket
+-- Despachante Central de Requisições RPC com Logging
 -- ----------------------------------------------------------------------------
-local clients = {}
-
-local timer = createTimer(nil, false)
-timer.Interval = 20 -- Executa a cada 20ms no thread principal do CE (sem congelar a UI)
-
-timer.OnTimer = function()
-    if not CE_MCP_SERVER_SOCKET then return end
-
-    local client = CE_MCP_SERVER_SOCKET:accept()
-    if client then
-        client:settimeout(0)
-        table.insert(clients, { socket = client, buffer = "" })
+local function dispatchRPC(req)
+    if not req or not req.method then
+        mcp_log("ERROR", "RPC", "Requisição JSON-RPC inválida ou método ausente.")
+        return { jsonrpc = "2.0", id = req and req.id or nil, error = { code = -32600, message = "Invalid Request" } }
     end
 
-    for i = #clients, 1, -1 do
-        local c = clients[i]
-        local data, err, part = c.socket:receive("*l")
-        local line = data or part
+    local response = { id = req.id, jsonrpc = "2.0" }
+    local handler = handlers[req.method]
 
-        if line and line ~= "" then
-            c.buffer = c.buffer .. line
-            local req = json.decode(c.buffer)
-            c.buffer = ""
-
-            if req and req.method then
-                local response = { id = req.id, jsonrpc = "2.0" }
-                local handler = handlers[req.method]
-                if handler then
-                    local status, res = pcall(handler, req.params or {})
-                    if status then
-                        response.result = res
-                    else
-                        response.error = { code = -32603, message = tostring(res) }
-                    end
-                else
-                    response.error = { code = -32601, message = "Método não encontrado: " .. tostring(req.method) }
-                end
-
-                local respStr = json.encode(response) .. "\n"
-                pcall(function() c.socket:send(respStr) end)
-            end
+    mcp_log("DEBUG", "RPC_EXEC", "Executando método '" .. tostring(req.method) .. "'...")
+    if handler then
+        local st, r = pcall(handler, req.params or {})
+        if st then
+            mcp_log("DEBUG", "RPC_SUCCESS", "Método '" .. tostring(req.method) .. "' executado com sucesso.")
+            response.result = r
+        else
+            mcp_log("ERROR", "RPC_EXCEPTION", "Exceção ao executar '" .. tostring(req.method) .. "': " .. tostring(r))
+            response.error = { code = -32603, message = tostring(r) }
         end
-
-        if err == "closed" then
-            table.remove(clients, i)
-        end
+    else
+        mcp_log("WARNING", "RPC_NOTFOUND", "Método não encontrado: '" .. tostring(req.method) .. "'")
+        response.error = { code = -32601, message = "Método não encontrado: " .. tostring(req.method) }
     end
+    return response
 end
 
-timer.Enabled = true
-print("[SUCESSO] Loop de eventos do Cheat Engine MCP ativado!")
+local RESP_FILE_PATH = getCheatEngineDir() .. "mcp_resp.json"
+
+function _CE_MCP_DISPATCH(jsonStr)
+    mcp_log("DEBUG", "NATIVE_RECV", "Recebido via Native IPC: " .. tostring(jsonStr))
+    local req = json.decode(jsonStr)
+    local respStr = ""
+    if req then
+        local resp = dispatchRPC(req)
+        respStr = json.encode(resp)
+    else
+        respStr = '{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"}}'
+    end
+
+    pcall(function()
+        local f = io.open(RESP_FILE_PATH, "w")
+        if f then
+            f:write(respStr)
+            f:close()
+        end
+    end)
+    return #respStr
+end
+
+-- ----------------------------------------------------------------------------
+-- Servidor IPC Nativo do Cheat Engine (via openLuaServer)
+-- ----------------------------------------------------------------------------
+local luaServerSt, luaServerRes = pcall(openLuaServer, "CheatEngineMCP")
+mcp_log("INFO", "INIT", "openLuaServer('CheatEngineMCP') ativado: status=" .. tostring(luaServerSt) .. ", res=" .. tostring(luaServerRes))
+
+-- ----------------------------------------------------------------------------
+-- Servidor Named Pipe Secundário (via createPipe)
+-- ----------------------------------------------------------------------------
+if CE_MCP_PIPE_SERVER then
+    pcall(function() CE_MCP_PIPE_SERVER.destroy() end)
+    CE_MCP_PIPE_SERVER = nil
+end
+
+local pipeStatus, pipeRes = pcall(createPipe, "CheatEngineMCP_Pipe", 65536, 65536)
+mcp_log("DEBUG", "PIPE_INIT", "pipeStatus=" .. tostring(pipeStatus) .. ", pipeRes=" .. tostring(pipeRes) .. ", valid=" .. tostring(pipeRes and pipeRes.valid))
+
+if pipeStatus and pipeRes and pipeRes.valid then
+    CE_MCP_PIPE_SERVER = pipeRes
+    mcp_log("INFO", "INIT", "Servidor Named Pipe Cheat Engine ativado (CheatEngineMCP)!")
+
+    if CE_MCP_TIMER then
+        pcall(function() CE_MCP_TIMER.destroy() end)
+        CE_MCP_TIMER = nil
+    end
+
+    local pipeBuffer = ""
+    local timer = createTimer(nil, false)
+    CE_MCP_TIMER = timer
+    timer.Interval = 50 -- Roda a cada 50ms no thread principal do CE (totalmente não-bloqueante)
+
+    timer.OnTimer = function()
+        if not CE_MCP_PIPE_SERVER then return end
+
+        local st, bytes = pcall(function() return CE_MCP_PIPE_SERVER:readBytesMin(0, 4096) end)
+        if st and bytes and #bytes > 0 then
+            mcp_log("DEBUG", "PIPE_READ", "Lidos " .. tostring(#bytes) .. " bytes da Named Pipe!")
+            local chunk = byteTableToString(bytes)
+            if chunk then
+                pipeBuffer = pipeBuffer .. chunk
+                local newlinePos = pipeBuffer:find("\n")
+                if newlinePos then
+                    local line = pipeBuffer:sub(1, newlinePos - 1)
+                    if line:sub(-1) == "\r" then line = line:sub(1, -2) end
+                    pipeBuffer = pipeBuffer:sub(newlinePos + 1)
+
+                    mcp_log("DEBUG", "PIPE_RECV", "Recebido via Named Pipe: " .. line)
+                    local req = json.decode(line)
+                    if req then
+                        local response = dispatchRPC(req)
+                        local respStr = json.encode(response) .. "\n"
+                        mcp_log("DEBUG", "PIPE_SEND", "Enviando resposta via Named Pipe...")
+                        local respBytes = stringToByteTable(respStr)
+                        pcall(function() CE_MCP_PIPE_SERVER:writeBytes(respBytes, #respBytes) end)
+                    end
+                end
+            end
+        end
+    end
+
+    timer.Enabled = true
+    mcp_log("INFO", "INIT", "Loop de eventos MCP não-bloqueante ativado com sucesso!")
+end
+
+

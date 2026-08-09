@@ -21,12 +21,13 @@ flowchart TD
 
     subgraph MCP_Layer [Camada de Transporte MCP]
         PyMCP["Servidor Python MCP (FastMCP)\nsrc/mcp_cheatengine/server.py"]
-        RPCClient["Cliente RPC TCP\nsrc/mcp_cheatengine/rpc_client.py"]
+        RPCClient["Cliente RPC Multi-Canal\nsrc/mcp_cheatengine/rpc_client.py"]
     end
 
     subgraph CE_Layer [Ambiente Cheat Engine]
-        LuaServer["Bridge Lua Socket (TCP 127.0.0.1:52737)\nlua/ce_mcp_lua.lua"]
-        TimerLoop["Loop de Eventos Assíncrono (Timer 20ms)\nCE Main Thread"]
+        LuaClientDLL["LuaClient Native DLL (luaclient-x86_64.dll)\n(openLuaServer 'CheatEngineMCP')"]
+        LuaServer["Bridge Lua Socket / Pipe (TCP:52737 & Pipe)\nlua/ce_mcp_lua.lua"]
+        TimerLoop["Loop de Eventos Assíncrono (Timer Non-blocking 50ms)\nCE Main Thread"]
         CE_API["APIs Internas Cheat Engine\n(readBytes, writeBytes, AOBScan, etc)"]
     end
 
@@ -39,7 +40,7 @@ flowchart TD
     PS1 -->|Injeta Configuração mcpServers| LLM
     LLM <-->|Protocolo MCP via Stdio| PyMCP
     PyMCP --> RPCClient
-    RPCClient <-->|JSON-RPC 2.0 via TCP Socket| LuaServer
+    RPCClient <-->|1. Native DLL (luaclient-x86_64.dll)\n2. TCP Socket (127.0.0.1:52737)\n3. Named Pipe (\\\\.\\pipe\\CheatEngineMCP)| LuaServer
     LuaServer --> TimerLoop
     TimerLoop --> CE_API
     CE_API <-->|Windows API / OpenProcess / VirtualProtect| TargetProc
@@ -58,16 +59,19 @@ flowchart TD
   - Inicialização garantida do Cheat Engine com a ponte ativada na porta `127.0.0.1:52737`.
 
 ### 2. Camada MCP Python (`src/mcp_cheatengine/`)
-- **`server.py`**: Instancia a aplicação FastMCP e expõe as 21 ferramentas para a IA via transporte `stdio`.
-- **`rpc_client.py`**: Gerencia sockets TCP para enviar requisições formatadas em JSON-RPC 2.0 e aguarda respostas do Cheat Engine com controle de *timeouts*.
+- **`server.py`**: Instancia a aplicação FastMCP e expõe as 22 ferramentas para a IA via transporte `stdio`.
+- **`rpc_client.py`**: Gerencia cliente de transporte multi-canal (DLL Nativa `luaclient-x86_64.dll`, TCP Socket e Named Pipes Windows), enviando requisições formatadas em JSON-RPC 2.0.
+- **`logger.py`**: Sistema centralizado de logs com suporte a timestamps e feature flag `CE_MCP_DEBUG`.
 - **`config.py`**: Centraliza parâmetros como host (`127.0.0.1`), porta (`52737`), e tempo limite de varreduras.
 - **`tools/`**: Módulos divididos por domínio funcional (Processos, Memória, Scanner, Assembly, Lua, Depuração, Controle, Tabela).
 
 ### 3. Camada Bridge Lua (`lua/ce_mcp_lua.lua`)
 - **JSON Parser/Encoder Nativo**: Parser escrito em Lua puro que garante funcionamento sem a necessidade de bibliotecas C binárias externas.
-- **LuaSocket Bind**: Abre um escutador TCP na porta `52737` em modo não-bloqueante (`settimeout(0)`).
-- **Timer Non-Blocking**: Roda no loop gráfico do Cheat Engine a cada 20ms. Isso evita que o Cheat Engine trave ou congele a interface enquanto escuta requisições da IA.
-- **API Wrapper**: Mapeia métodos JSON-RPC para chamadas nativas como `readInteger`, `AOBScan`, `autoAssemble`, `debug_setBreakpoint`, `writeRegionToFile` (Sandboxed).
+- **Servidor IPC Nativo (`openLuaServer`)**: Abre o canal nativo do Cheat Engine para comunicação instantânea com `luaclient-x86_64.dll`.
+- **Servidor Named Pipe & TCP Fallback**: Fallback via `createPipe` escutando requisições em modo totalmente não-bloqueante.
+- **Timer Non-Blocking**: Roda no loop de interface do Cheat Engine a cada 50ms com `readBytesMin(0, 4096)`. Isso evita que a interface gráfica do Cheat Engine congele.
+- **Log Automático de Sessão (`ce_mcp_lua.log`)**: Grava todos os eventos no arquivo de log em disco, truncando o arquivo automaticamente a cada reinicialização do Cheat Engine.
+- **API Wrapper**: Mapeia métodos JSON-RPC para chamadas nativas como `readInteger`, `AOBScan`, `autoAssemble`, `debug_setBreakpoint`, `writeRegionToFile` (Sandboxed) e `closeCE`.
 
 ---
 

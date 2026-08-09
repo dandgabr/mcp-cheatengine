@@ -8,19 +8,36 @@
 
 param(
     [string]$TargetAI = "all", # 'claude', 'antigravity', 'cursor', 'vscode', 'all', 'none'
-    [string]$AutoLaunch = "true"
+    [string]$AutoLaunch = "true",
+    [string]$DebugLogs = "true"
 )
 
 $ErrorActionPreference = "Stop"
+
+$shouldLogDebug = ($DebugLogs -eq "true" -or $DebugLogs -eq "1" -or $DebugLogs -eq "yes" -or $DebugLogs -eq "True")
+
+function Write-Log([string]$message, [string]$level = "DEBUG") {
+    if (-not $shouldLogDebug -and $level -eq "DEBUG") { return }
+    $timestamp = Get-Date -Format "HH:mm:ss"
+    $color = "Cyan"
+    if ($level -eq "INFO") { $color = "Green" }
+    elseif ($level -eq "WARN") { $color = "Yellow" }
+    elseif ($level -eq "ERROR") { $color = "Red" }
+    
+    Write-Host "[$level][$timestamp][PS] $message" -ForegroundColor $color
+}
+
+Write-Log "Inicializando Launcher (DebugLogs=$DebugLogs)..." "INFO"
+
 $shouldLaunch = ($AutoLaunch -eq "true" -or $AutoLaunch -eq "1" -or $AutoLaunch -eq "yes")
 
 # Verificar se está rodando como Administrador
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin) {
-    Write-Host "[!] Solicitando privilégios de Administrador para acessar C:\Program Files..." -ForegroundColor Yellow
+    Write-Log "Solicitando privilégios de Administrador para acessar C:\Program Files..." "WARN"
     $scriptPath = $MyInvocation.MyCommand.Path
-    $argList = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -TargetAI `"$TargetAI`" -AutoLaunch `"$AutoLaunch`""
+    $argList = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -TargetAI `"$TargetAI`" -AutoLaunch `"$AutoLaunch`" -DebugLogs `"$DebugLogs`""
     Start-Process powershell -Verb RunAs -ArgumentList $argList
     exit
 }
@@ -103,8 +120,13 @@ if (-not (Test-Path $CEAutorunDir)) {
 $LuaBridgeSource = Join-Path $RepoDir "lua\ce_mcp_lua.lua"
 $LuaAutorunSource = Join-Path $RepoDir "lua\autorun\ce_mcp_autorun.lua"
 
+# Remover cópia antiga no autorun se existir para evitar execução duplicada
+$OldAutorunLua = Join-Path $CEAutorunDir "ce_mcp_lua.lua"
+if (Test-Path $OldAutorunLua) {
+    Remove-Item -Path $OldAutorunLua -Force -ErrorAction SilentlyContinue
+}
+
 Copy-Item -Path $LuaBridgeSource -Destination (Join-Path $CEPath "ce_mcp_lua.lua") -Force
-Copy-Item -Path $LuaBridgeSource -Destination (Join-Path $CEAutorunDir "ce_mcp_lua.lua") -Force
 Copy-Item -Path $LuaAutorunSource -Destination (Join-Path $CEAutorunDir "ce_mcp_autorun.lua") -Force
 
 Write-Host "[SUCESSO] Ponte Lua acoplada com sucesso no Autorun do Cheat Engine!" -ForegroundColor Green

@@ -6,3 +6,4 @@ class Config:
     CE_PORT: int = int(os.getenv("CE_PORT", "52737"))
     DEFAULT_TIMEOUT: float = float(os.getenv("CE_TIMEOUT", "5.0"))
     SCAN_TIMEOUT: float = float(os.getenv("CE_SCAN_TIMEOUT", "15.0"))
+    DEBUG_LOGS: bool = os.getenv("CE_MCP_DEBUG", "true").lower() in ("true", "1", "yes", "y", "on")

@@ -2,6 +2,7 @@ import json
 from typing import Any, List
 from mcp.server.fastmcp import FastMCP
 from mcp_cheatengine.rpc_client import default_client
+from mcp_cheatengine.logger import log_debug
 
 
 def register_memory_tools(mcp: FastMCP) -> None:
@@ -22,6 +23,7 @@ def register_memory_tools(mcp: FastMCP) -> None:
         :param count: Quantidade de bytes a ler quando data_type='bytes'.
         :param length: Tamanho máximo da string quando data_type='string'.
         """
+        log_debug(f"Executando tool: ce_read_memory(address='{address}', type='{data_type}', count={count}, length={length})")
         params = {
             "address": address,
             "type": data_type,
@@ -44,6 +46,7 @@ def register_memory_tools(mcp: FastMCP) -> None:
         :param value: Valor a ser escrito (Número, String de texto, ou String de bytes em hex ex: '90 90 90').
         :param data_type: Tipo de dado: 'byte', 'bytes', 'int16', 'int32', 'int64', 'float', 'double', 'string'.
         """
+        log_debug(f"Executando tool: ce_write_memory(address='{address}', value={value}, type='{data_type}')")
         params = {
             "address": address,
             "value": value,
@@ -63,6 +66,7 @@ def register_memory_tools(mcp: FastMCP) -> None:
         :param base_address: Endereço base ou símbolo inicial (ex: 'game.exe+0x01F82A0').
         :param offsets: Lista de offsets em número decimal ou hex (ex: [0x10, 0x48, 0x8]).
         """
+        log_debug(f"Executando tool: ce_read_pointer_chain(base_address='{base_address}', offsets={offsets})")
         params = {
             "base_address": base_address,
             "offsets": offsets

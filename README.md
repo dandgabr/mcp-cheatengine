@@ -27,10 +27,10 @@ Para mais detalhes sobre o modelo de execução assíncrona non-blocking e proto
 
 ---
 
-## ⚡ Funcionalidades Principais (21 Ferramentas MCP)
+## ⚡ Funcionalidades Principais (22 Ferramentas MCP)
 
 - **Inicialização & Pré-configuração Automática**: Script PowerShell (`scripts/launcher.ps1`) e Batch (`start_mcp_ce.bat`) para localização automática do Cheat Engine no registro do Windows, acoplamento da ponte Lua no autorun e injeção do JSON do cliente de IA.
-- **Gerenciamento de Processos**: Listagem e anexo automático a processos por Nome ou PID, além de pausa e retomada de execução.
+- **Gerenciamento de Processos**: Listagem, anexo por PID/Nome e encerramento remoto do Cheat Engine (`ce_close_cheat_engine`).
 - **Manipulação de Memória**: Leitura, escrita, alocação segura (`allocateMemory` com limite de 10MB) e desalocação de regiões de memória.
 - **Speedhack & Controle**: Ajuste fino do multiplicador de velocidade de processos (0.0x a 500.0x).
 - **Address List / Cheat Table**: Leitura, adição de entradas e congelamento (`Active = true/false`) de registros na tabela do Cheat Engine.
@@ -114,6 +114,7 @@ Consulte o [Guia de Quickstart](docs/QUICKSTART.md) para executar passo a passo 
 | Ferramenta | Categoria | Descrição |
 | :--- | :--- | :--- |
 | `ce_ping` | Sistema | Testa a conectividade com o servidor Lua do Cheat Engine |
+| `ce_close_cheat_engine` | Sistema | Encerra a aplicação do Cheat Engine com segurança via MCP |
 | `ce_list_processes` | Processos | Lista todos os processos em execução no Windows |
 | `ce_attach_process` | Processos | Anexa o Cheat Engine a um processo alvo por PID ou Nome |
 | `ce_get_attached_process` | Processos | Retorna o ID e nome do processo anexado |
