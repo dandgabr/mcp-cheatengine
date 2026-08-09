@@ -16,7 +16,7 @@ Ele conta com um **sistema de inicialização automática em PowerShell e Batch*
 ## 📐 Arquitetura do Projeto
 
 ```mermaid
-flowchart LR
+flowchart TD
     Launcher["Launcher Automático\nstart_mcp_ce.bat / scripts/launcher.ps1"] -->|Acopla Autorun Lua & Configura MCP| AI[Assistente de IA\nClaude / Antigravity / Cursor / VS Code]
     AI <-->|MCP Stdio Protocol| PyServer[Servidor Python MCP\nsrc/mcp_cheatengine/server.py]
     PyServer <-->|TCP Socket / JSON-RPC 2.0\n127.0.0.1:52737| CE[Cheat Engine Lua Engine\nlua/ce_mcp_lua.lua]
