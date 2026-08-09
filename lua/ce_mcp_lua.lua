@@ -788,7 +788,6 @@ function handlers.auto_assemble(params)
         message = "Script Auto Assemble aplicado com sucesso."
     }
 end
-end
 
 function handlers.execute_lua(params)
     local code = params.code

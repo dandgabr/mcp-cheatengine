@@ -2,6 +2,8 @@ import os
 import sys
 import json
 import time
+import concurrent.futures
+from datetime import datetime
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -10,17 +12,32 @@ sys.path.insert(0, os.path.abspath("src"))
 
 from mcp_cheatengine.rpc_client import default_client
 
-def run_test(name, func):
+def run_test(name, func, timeout_sec=5.0):
+    ts = datetime.now().strftime("%H:%M:%S")
     print(f"\n==================================================")
-    print(f" [*] EXECUTANDO TESTE: {name}")
+    print(f" [{ts}][*] EXECUTANDO TESTE: {name}")
     print(f"==================================================")
+    sys.stdout.flush()
+
     try:
-        res = func()
-        print(f"[+] SUCESSO no teste '{name}':")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(func)
+            res = future.result(timeout=timeout_sec)
+        
+        ts_ok = datetime.now().strftime("%H:%M:%S")
+        print(f"[{ts_ok}][+] SUCESSO no teste '{name}':")
         print(json.dumps(res, indent=2, ensure_ascii=False))
+        sys.stdout.flush()
         return True
+    except concurrent.futures.TimeoutError:
+        ts_err = datetime.now().strftime("%H:%M:%S")
+        print(f"[{ts_err}][-] TIMEOUT ({timeout_sec}s) no teste '{name}'")
+        sys.stdout.flush()
+        return False
     except Exception as e:
-        print(f"[-] ERRO no teste '{name}': {e}")
+        ts_err = datetime.now().strftime("%H:%M:%S")
+        print(f"[{ts_err}][-] ERRO no teste '{name}': {e}")
+        sys.stdout.flush()
         return False
 
 tests_passed = 0

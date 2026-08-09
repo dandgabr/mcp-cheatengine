@@ -1,7 +1,9 @@
 import os
 import json
 import socket
+import time
 import ctypes
+import concurrent.futures
 from ctypes import wintypes
 from typing import Any, Dict, Optional
 from mcp_cheatengine.config import Config
@@ -133,7 +135,7 @@ class CERPCClient:
         payload_str = json.dumps(payload) + "\n"
         log_debug(f"RPC Request -> Método: '{method}', Params: {params or {}}")
 
-        # 1. Tenta comunicação nativa via luaclient-x86_64.dll
+        # 1. Tenta comunicação nativa via luaclient-x86_64.dll com timeout de 3s
         try:
             dll_path = r"C:\Program Files\Cheat Engine\luaclient-x86_64.dll"
             if os.path.exists(dll_path):
@@ -154,7 +156,11 @@ class CERPCClient:
                     json_str = json.dumps(payload)
                     lua_code = f"return _CE_MCP_DISPATCH([[ {json_str} ]])".encode("utf-8")
                     log_debug(f"Executando via LuaClient DLL: {lua_code.decode('utf-8')}")
-                    res_len = self.luaclient.CELUA_ExecuteFunction(lua_code, 0)
+
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(self.luaclient.CELUA_ExecuteFunction, lua_code, 0)
+                        res_len = future.result(timeout=3.0)
+
                     log_debug(f"CELUA_ExecuteFunction retornou res_len: {res_len}")
                     if res_len > 0:
                         resp_file = r"C:\Program Files\Cheat Engine\mcp_resp.json"
@@ -172,7 +178,7 @@ class CERPCClient:
                             else:
                                 log_debug(f"Stale response in mcp_resp.json (id {res.get('id')} != {req_id}). Ignorando...")
         except Exception as dll_e:
-            log_debug(f"Falha na conexão via LuaClient DLL ({dll_e}). Alternando para TCP Socket...")
+            log_debug(f"Falha ou timeout na conexão via LuaClient DLL ({dll_e}). Alternando para TCP Socket...")
 
         # 2. Tenta conexão via TCP Socket (LuaSocket)
         try:
